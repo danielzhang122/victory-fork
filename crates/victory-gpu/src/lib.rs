@@ -12,9 +12,12 @@
 //! descriptor heaps, [`root`] root signatures, [`query`] query heaps,
 //! [`signature`] command signatures, [`pipeline`] pipeline states,
 //! [`frame`] frame pacing, [`object`] what all console graphics objects
-//! share, [`console`] which console model the title sees. Planned:
+//! share, [`console`] which console model the title sees, `external` host
+//! libraries recording into title lists. Planned:
 //! `present` (swap chain).
 
+#[cfg(windows)]
+mod bindless;
 #[cfg(all(windows, feature = "diagnostics"))]
 mod capture;
 pub mod console;
@@ -25,6 +28,8 @@ pub mod device;
 #[cfg(windows)]
 mod draw;
 pub mod dxgi;
+#[cfg(windows)]
+pub mod external;
 pub mod fence;
 pub mod frame;
 #[cfg(windows)]
@@ -34,6 +39,8 @@ mod indirect;
 #[cfg(windows)]
 mod inplace;
 pub mod list;
+#[cfg(windows)]
+mod memory;
 pub mod object;
 pub mod pipeline;
 #[cfg(windows)]
@@ -51,8 +58,13 @@ mod memory;
 #[cfg(windows)]
 mod shadow;
 pub mod signature;
+mod switch;
+#[cfg(windows)]
+mod tdr;
 #[cfg(windows)]
 mod texture;
+#[cfg(windows)]
+mod twin;
 #[cfg(windows)]
 mod watch;
 
@@ -62,5 +74,6 @@ pub use host::on_failure;
 pub use inplace::{title_memory_freeing, title_memory_section, title_memory_view};
 #[cfg(windows)]
 pub use watch::{
-    title_memory_reading, title_memory_remapped, title_memory_remapping, writing as kernel_will_write,
+    Writing as KernelWrite, title_memory_aliased, title_memory_reading, title_memory_remapped,
+    title_memory_remapping, writing as kernel_will_write,
 };
