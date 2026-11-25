@@ -21,14 +21,18 @@ pub const VIEW_STRIDES: u8 = 255;
 pub const MEMORY_SPACE: u32 = 2;
 /// Heap indices are clamped below these (views, samplers): the host's heaps
 /// are at least this large, the slots past their own null (`emit`, "Heap
-/// indices").
+/// indices"). `HEAP_VIEWS` is the view heap's size unless the host sets its
+/// own ([`super::view_heap_limit`]).
 pub const HEAP_VIEWS: u32 = 1 << 21;
 pub const HEAP_SAMPLERS: u32 = 2048;
 /// The heap index of the host's null raw buffer view (the null raw
 /// unordered access view at the index below), read instead of a slot that
 /// holds no buffer view where a shader reads one at an index it computes
-/// (`emit`, "Buffer views at computed heap indices").
-pub const NULL_BUFFER_VIEW: u32 = HEAP_VIEWS - 2;
+/// (`emit`, "Buffer views at computed heap indices"): two slots below the
+/// view heap's end.
+pub fn null_buffer_view() -> u32 {
+    super::view_heap_limit() - 2
+}
 
 /// `ShaderFlags` bits (metadata) and their `SFI0` feature bits.
 pub(crate) mod flags {
@@ -456,7 +460,7 @@ impl Shader {
         self.nonuniform_handles += u32::from(nonuniform);
         // An index past the host's heap faults the device (a console shader
         // reads whatever memory follows its heap): the last slot instead.
-        let last = self.m.i32(if sampler { HEAP_SAMPLERS } else { HEAP_VIEWS } - 1);
+        let last = self.m.i32(if sampler { HEAP_SAMPLERS } else { super::view_heap_limit() } - 1);
         let over = self.m.cmp(block, pred::IUGT, index, last);
         let index = self.m.select(block, over, last, index);
         let (s, n) = (self.m.bool(sampler), self.m.bool(nonuniform));
