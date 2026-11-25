@@ -200,7 +200,7 @@ fn far_jump<'a>(
     Ok(None)
 }
 
-fn instruction(code: &[u8], offset: usize) -> Result<Instruction, ShaderError> {
+pub(crate) fn instruction(code: &[u8], offset: usize) -> Result<Instruction, ShaderError> {
     let word = |i: usize| {
         code.get(offset + 4 * i..offset + 4 * i + 4)
             .map(|b| u32::from_le_bytes(b.try_into().expect("4 bytes")))

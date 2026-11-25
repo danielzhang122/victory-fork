@@ -223,7 +223,13 @@ pub fn build_bounded(
             };
         }
         let m0 = m0_max.get(&machine.offset).copied();
-        if let Some((reads, writes)) = effects(&machine, &fields, name, lanes, vgprs, m0)? {
+        if let Some((mut reads, writes)) = effects(&machine, &fields, name, lanes, vgprs, m0)? {
+            // Lanes disabled in EXEC keep the old value.
+            for w in writes.iter().filter(|w| matches!(w, Reg::V(_))) {
+                if !reads.contains(w) {
+                    reads.push(*w);
+                }
+            }
             let unset = |regs: Vec<Reg>| regs.into_iter().map(|r| (r, NONE)).collect();
             blocks[b].insts.push(Inst {
                 machine,
@@ -453,10 +459,7 @@ fn unspill(
     // Re-decoded from its one dword, so the decoder fills in the instruction's name.
     let put = |list: &mut [gfx10::Instruction], i: usize, _encoding, _opcode: u16, word: u32| {
         let offset = list[i].offset;
-        let mut n = gfx10::decode(&word.to_le_bytes())
-            .ok()
-            .and_then(|v| v.into_iter().next())
-            .expect("a 32-bit instruction word");
+        let mut n = gfx10::instruction(&word.to_le_bytes(), 0).expect("a 32-bit instruction word");
         n.offset = offset;
         list[i] = n;
     };

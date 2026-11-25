@@ -860,33 +860,3 @@ mod tests {
         assert_eq!(super::to_rgba(87, 1, 1, 4, &[1, 2, 3, 4]), Some(vec![3, 2, 1, 255]));
     }
 }
-
-/// With a capture folder, for the frames [`listed`]: `what` is added to the
-/// frame's `frame-<n>-ops.txt`, one line per draw, dispatch, copy or drop in
-/// the order recorded (each names its list, lines of different lists
-/// interleave). The file says which pass writes which target.
-/// shortcut: the fork's before-world ring (`before-world-ops.txt`) is not
-/// ported; only listed frames are written, upgrade when the world frames need it.
-pub(crate) fn op(list: usize, what: impl FnOnce() -> String) {
-    use std::io::Write;
-    let frame = crate::queue::presented() + 1;
-    if !listed(frame) {
-        return;
-    }
-    let Some(folder) = folder() else {
-        return;
-    };
-    static FILE: std::sync::Mutex<Option<(u64, u64, std::fs::File)>> = std::sync::Mutex::new(None);
-    let what = what();
-    let mut file = FILE.lock().unwrap_or_else(|e| e.into_inner());
-    if file.as_ref().is_none_or(|f| f.0 != frame) {
-        let Ok(made) = std::fs::File::create(folder.join(format!("frame-{frame}-ops.txt"))) else {
-            return;
-        };
-        *file = Some((frame, 0, made));
-    }
-    if let Some((_, n, f)) = file.as_mut() {
-        *n += 1;
-        let _ = writeln!(f, "{n} list {list:#x} {what}");
-    }
-}

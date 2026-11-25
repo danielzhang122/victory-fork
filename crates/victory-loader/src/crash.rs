@@ -530,7 +530,11 @@ unsafe fn sse4a(code: *const u8, xmm: &mut [M128A; 16]) -> Option<usize> {
 }
 
 unsafe extern "system" fn handler(info: *mut EXCEPTION_POINTERS) -> i32 {
-    // an instruction of the console's CPU this one lacks: emulated, the title goes on
+    // SAFETY: the system passes valid exception pointers.
+    if unsafe { emulate_amd_only(info) } {
+        return -1; // EXCEPTION_CONTINUE_EXECUTION
+    }
+    // what upstream's emulate_amd_only leaves: the fork's emulator of the console CPU's instructions
     // SAFETY: the system passes valid exception pointers.
     if unsafe { (*(*info).ExceptionRecord).ExceptionCode } == EXCEPTION_ILLEGAL_INSTRUCTION {
         // SAFETY: the faulting thread's context, for the exception being dispatched.
@@ -538,10 +542,6 @@ unsafe extern "system" fn handler(info: *mut EXCEPTION_POINTERS) -> i32 {
         if r != 0 {
             return r;
         }
-    }
-    // SAFETY: the system passes valid exception pointers.
-    if unsafe { emulate_amd_only(info) } {
-        return -1; // EXCEPTION_CONTINUE_EXECUTION
     }
     // SAFETY: as above.
     let code = unsafe { (*(*info).ExceptionRecord).ExceptionCode };

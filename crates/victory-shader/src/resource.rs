@@ -421,39 +421,6 @@ struct Tracer<'a> {
 /// its negation where not.
 type Known = Vec<(Bool, bool)>;
 
-/// Whether some lane can satisfy all of `known`. The search gives up (yes)
-/// on many large conditions, as the reach of blocks deep in a program is,
-/// before it gets to the branch conditions of the path, so those few small
-/// ones are tried alone first: if they cannot hold together, neither can
-/// all.
-fn meet(lanes: &Structured, known: &Known) -> bool {
-    let small: Known = known
-        .iter()
-        .copied()
-        .filter(|&(b, _)| few_atoms(&lanes.bools, b))
-        .collect();
-    (small.len() == known.len() || lanes.bools.meet(&small)) && lanes.bools.meet(known)
-}
-
-/// Whether `b` is a small condition: at most 4 atoms within 32 nodes.
-fn few_atoms(bools: &crate::structure::Bools, b: Bool) -> bool {
-    let (mut atoms, mut stack, mut nodes) = (Vec::new(), vec![b], 0);
-    while let Some(x) = stack.pop() {
-        let Some((atom, lo, hi)) = bools.node(x) else {
-            continue;
-        };
-        nodes += 1;
-        if !atoms.contains(&atom) {
-            atoms.push(atom);
-        }
-        if nodes > 32 || atoms.len() > 4 {
-            return false;
-        }
-        stack.extend([lo, hi]);
-    }
-    true
-}
-
 const MAX_ROUNDS: usize = 64;
 const MAX_JOINS: usize = 8;
 /// VGPR values followed for one dword of a descriptor kept per lane.

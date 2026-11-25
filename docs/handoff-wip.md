@@ -6,7 +6,7 @@ Continue on the other PC (RTX 4070 Ti). Read this file first.
 
 - Branch `sync-upstream` holds an **unfinished merge** of upstream `Marvisak/VIctory` `main` (315 commits) into this fork. It is committed as a merge commit that does not compile yet; keep working on this branch and commit the fixes on top.
 - Pull both branches: `git fetch origin; git switch sync-upstream`; the heap-limit work is on `fix/view-heap-limit` (WIP commit).
-- All conflicts are resolved and staged. `victory-game` compiles. `victory-shader` has about 36 compile errors left (see the state files below). `victory-gpu` has not been checked yet.
+- On the RTX 4070 Ti PC (2026-11-24) the merge compiles, clippy (default and --all-features) is clean, `xtask policy` passes, and `cargo test --workspace` has exactly upstream's own 5 failures on this card: descriptor::host dynamic_slots, memory lists_share, stride_tests heap_buffer_read x2, synthetic gathers_at_a_level (the same tests fail on upstream 4118f33 here). See section 6 for what was taken from upstream or dropped.
 - The GPU-side fork files were taken from upstream whole: `draw.rs`, `host.rs`, `descriptor/host.rs`, `shadow.rs`, `texture.rs`, `watch.rs`, `resource.rs`, `indirect.rs`, `memory.rs`, `pipeline/*.rs`, `capture.rs`, `copystat.rs`. The fork's originals are readable with `git show a803c87:<path>`.
 
 ## 2. Agent state files (copied verbatim)
@@ -197,7 +197,7 @@ Based on upstream `main`. It fixes the GPU texture-heap size: the heap size is p
 
 ## 4. Plan
 
-- **M1** Merge compiles, then tests and clippy match the upstream baseline. Five GPU-bound tests fail on Intel Arc: `descriptor::host` dynamic_slots, `memory` lists_share, `stride` heap_buffer_read, `image_atomics_of_64_bits`, `fspx` dot products.
+- **M1** Merge compiles, then tests and clippy match the upstream baseline. Five GPU-bound tests fail on Intel Arc: `descriptor::host` dynamic_slots, `memory` lists_share, `stride` heap_buffer_read, `image_atomics_of_64_bits`, `fspx` dot products. — done 2026-11-24
 - **M2** Heap-limit fix and test capability skips, as upstream PRs.
 - **M3** Port the dropped fork switches (library map/trim, LATE_WAIT/RELAY, CARD_BUFFERS, INPLACE, draw.rs switches).
 - **M4** Re-enable the lints, README.
@@ -208,3 +208,14 @@ Based on upstream `main`. It fixes the GPU texture-heap size: the heap size is p
 1. Install rustup, the Visual Studio Build Tools with the C++ workload, and the Windows SDK.
 2. Set `CARGO_TARGET_DIR` to a folder outside OneDrive (for example a `.cargo-target\victory-fork` folder under your user profile).
 3. `git fetch` and `git checkout sync-upstream`, then continue from section 1.
+
+## 6. Compile pass (new PC)
+
+- These victory-gpu files were also taken from upstream whole (`git checkout 4118f33 -- <path>`) to get the merge compiling: `crates/victory-gpu/src/descriptor.rs`, `crates/victory-gpu/src/fence.rs`, `crates/victory-gpu/src/lib.rs`, `crates/victory-gpu/src/list.rs`, `crates/victory-gpu/src/pipeline.rs`, `crates/victory-gpu/src/queue.rs`, `crates/victory-gpu/src/pipeline/host.rs`.
+- Exception: `pipeline/host.rs` upstream calls `victory_shader::emit::rectangle_gs(vs)`, but the fork's `rectangle_gs` takes `(vs, ps)`. Kept the call as `rectangle_gs(vs, ps)` with the pixel stage passed in (one-line change, not a whole-file take).
+- The fork's `crates/victory-gpu/src/inplace.rs` was removed (`git rm`).
+- Fork originals of these files are in `git show a803c87:<path>`. Their features (late wait/relay fences, in-place uploads, read-back deferral, list.rs draw-state replay) belong to M3.
+- `crates/victory-shader/src/emit/intersect.rs` and `intersect_tests.rs` removed (replaced by lower/bvh.rs).
+- The view-heap-limit re-export (`set_view_heap_limit`, `view_heap_limit`) and the `VICTORY_VIEW_LIMIT` env var in `apps/victory/src/main.rs` are removed.
+- `crates/victory-hle/src/modules/xmem.rs`: removed the `title_memory_section`, `title_memory_remapping`, `title_memory_view` and `title_memory_reading` calls (the dropped in-place feature) and the test `a_read_in_place_never_meets_the_gap_of_a_remapping`; the rest of the fork's xmem changes are kept.
+- Clippy pass: dead code of dropped fork features deleted: lower.rs f16_nearest_on, half_input_partners (+ its test), is_nan_f32, uniform_test, Lower.strides; bitcode Tag::Clamp; resource.rs meet/few_atoms. Restore from a803c87 when porting (M3).; victory-gpu capture.rs op() (per-frame ops log) and frame.rs pacing counters; victory-gpu back on miniz_oxide.

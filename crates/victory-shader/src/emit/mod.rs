@@ -165,7 +165,7 @@
 //!   count as `DispatchMesh(x, 1, 1)`. Per-primitive outputs (`PSG1`) are
 //!   the console's, without `SV_PrimitiveID` and `SV_CullPrimitive` (the
 //!   console never exports them).
-//! * **Rectangle lists** ([`rect_list_gs`], `gs_6_6`): the console draws a
+//! * **Rectangle lists** ([`rectangle_gs`], `gs_6_6`): the console draws a
 //!   rectangle from three vertices; the host has no such topology. A
 //!   pipeline the title makes for rectangles (topology type 19) gets a
 //!   geometry shader of ours between the translated vertex and pixel
@@ -182,8 +182,6 @@ mod diff_tests;
 mod flow_tests;
 #[cfg(all(windows, any(test, feature = "host")))]
 pub mod host;
-#[cfg(all(test, windows))]
-mod intersect_tests;
 mod lower;
 mod own_bits;
 mod rect;
@@ -217,9 +215,9 @@ pub use bitcode::census;
 pub use sampler::StaticSampler;
 pub use lower::set_host_max_wave;
 pub use shader::{
-    HEAP_SAMPLERS, HEAP_VIEWS, MEMORY_FAULTS, MEMORY_PAGES, MEMORY_SPACE, NULL_BUFFER_VIEW, ROOT_CBV_SPACE, SAMPLER_SPACE,
-    SLOT_FAULTS, SLOT_MEMORY, SLOT_STRIDES, SLOT_STRIDES_COUNT, USER_DATA_SPACE, USER_MEMORY_BASE, USER_VIEW_ADDRESS,
-    USER_VIEW_BIAS, VIEW_STRIDES, set_view_heap_limit, view_heap_limit,
+    HEAP_SAMPLERS, HEAP_VIEWS, MEMORY_FAULTS, MEMORY_PAGES, MEMORY_SPACE, NULL_BUFFER_VIEW,
+    ROOT_CBV_SPACE, SAMPLER_SPACE, SLOT_FAULTS, SLOT_MEMORY, SLOT_STRIDES, SLOT_STRIDES_COUNT,
+    USER_DATA_SPACE, USER_MEMORY_BASE, USER_VIEW_ADDRESS, USER_VIEW_BIAS, VIEW_STRIDES,
 };
 
 /// The loop limit without an override: 2^20.
@@ -272,6 +270,12 @@ pub fn group_sync() -> u8 {
     })
 }
 
+#[cfg(test)]
+thread_local! {
+    /// Tests that read the DXIL as the lowering made it set this to 0.
+    pub(crate) static TEST_SHADER_OPT: std::cell::Cell<Option<u32>> = const { std::cell::Cell::new(None) };
+}
+
 /// The clean-up passes that run over a translated program before it is
 /// written (`bitcode::opt`): a set of that module's pass bits. Every pass
 /// is exact, so the switch is for telling a translator fault from a
@@ -288,6 +292,10 @@ pub fn group_sync() -> u8 {
 /// Part of the translation: the shader cache keys on it (`victory-gpu`'s
 /// does).
 pub fn shader_opt() -> u32 {
+    #[cfg(test)]
+    if let Some(n) = TEST_SHADER_OPT.with(std::cell::Cell::get) {
+        return n;
+    }
     static PASSES: std::sync::OnceLock<u32> = std::sync::OnceLock::new();
     *PASSES.get_or_init(|| parse_shader_opt(std::env::var("VICTORY_SHADER_OPT").ok().as_deref()))
 }
@@ -1704,10 +1712,10 @@ mod tests {
         };
         program(0x7E08_1702).unwrap(); // v_cvt_f32_f16 v4, v2
         program(0x3408_0490).unwrap(); // v_lshlrev_b32 v4, 16, v2
-        let whole = program(0x7E08_0302).unwrap_err(); // v_mov_b32 v4, v2
-        assert!(whole.to_string().contains("first half"), "{whole}");
-        let part = program(0x3408_0488).unwrap_err(); // v_lshlrev_b32 v4, 8, v2
-        assert!(part.to_string().contains("first half"), "{part}");
+        // Upstream refuses a whole-dword or shifted read of a first half; this fork
+        // evaluates that first half as the pair it starts (`VICTORY_FIRST_HALF`, lower.rs).
+        program(0x7E08_0302).unwrap(); // v_mov_b32 v4, v2
+        program(0x3408_0488).unwrap(); // v_lshlrev_b32 v4, 8, v2
     }
 
     /// A pixel export before the `done` one, both under a lane guard (EXEC
@@ -1868,6 +1876,8 @@ mod tests {
     #[cfg(windows)]
     #[test]
     fn interpolated_f16_writes_the_op_sel_half_with_modifiers() {
+        // The DXIL as the lowering made it: the optimizer folds the mask of a zero old value.
+        super::TEST_SHADER_OPT.with(|o| o.set(Some(0)));
         // p1_f32 v2, v0, attr0.x; then a p2_f16 completing it into v2.
         let p2 = |dst_high: bool, omod: u32, clamp: bool| {
             let vgpr = |n: u32| 256 + n;

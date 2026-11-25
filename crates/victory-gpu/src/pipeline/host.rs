@@ -572,8 +572,17 @@ impl HostPipeline {
         // Rectangle lists: a geometry shader made for the vertex shader adds
         // each rectangle's fourth corner (else rectangles are expanded on
         // the CPU from vertex inputs, see `draw`).
-        let gs = match (g.topology.0, stages.first().and_then(|(s, _)| s.translated())) {
-            (RECTANGLES, Some(vs)) => match victory_shader::emit::rectangle_gs(&vs.host.dxil) {
+        let gs = match (
+            g.topology.0,
+            stages.first().and_then(|(s, _)| s.translated()),
+        ) {
+            (RECTANGLES, Some(vs)) => match victory_shader::emit::rectangle_gs(
+                &vs.host.dxil,
+                stages
+                    .get(1)
+                    .and_then(|(s, _)| s.translated())
+                    .map(|ps| ps.host.dxil.as_slice()),
+            ) {
                 Ok(gs) => gs,
                 Err(e) => {
                     tracing::warn!(error = %e, ?shaders, "no rectangle geometry shader");

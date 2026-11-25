@@ -9,7 +9,7 @@ use super::{Cast, Module, Op, Tag, Term, V};
 use std::cell::RefCell;
 
 /// The kinds, in the order of [`Census::counts`].
-pub const KINDS: [&str; 26] = [
+pub const KINDS: [&str; 25] = [
     "total",
     "arith",
     "math_call",
@@ -33,7 +33,6 @@ pub const KINDS: [&str; 26] = [
     "wave_op",
     "io_other",
     "gep",
-    "clamp",
     "loop_counter",
     "blocks",
 ];
@@ -162,7 +161,6 @@ impl Module {
                 c.counts[at] += 1;
                 match self.tags.get(&i) {
                     Some(Tag::Guard) => c.counts[k("guard_select")] += 1,
-                    Some(Tag::Clamp) => c.counts[k("clamp")] += 1,
                     Some(Tag::Counter) => c.counts[k("loop_counter")] += 1,
                     None => {}
                 }

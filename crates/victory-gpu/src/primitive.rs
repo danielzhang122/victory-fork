@@ -13,7 +13,7 @@
 //! next one, which the layout allows).
 //!
 //! A pipeline the title makes for rectangles completes them on the GPU
-//! instead, in a geometry stage (`victory_shader::emit::rect_list_gs`):
+//! instead, in a geometry stage (`victory_shader::emit::rectangle_gs`):
 //! from the vertex shader's outputs, whichever vertex the corner is, for
 //! direct, indexed and indirect draws alike. This expansion is what is
 //! left for a pipeline that could not get that stage.

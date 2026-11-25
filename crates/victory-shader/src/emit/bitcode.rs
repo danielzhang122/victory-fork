@@ -19,8 +19,6 @@ pub(crate) struct Ty(u32);
 pub(crate) enum Tag {
     /// The select that keeps a register's old value in lanes a guard masks.
     Guard,
-    /// An index clamp the translation adds (the console has none).
-    Clamp,
     /// The iteration counter and limit test the translation adds to a loop.
     Counter,
 }

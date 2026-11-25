@@ -693,6 +693,7 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "blake3",
+ "miniz_oxide",
  "tempfile",
  "tracing",
  "victory-formats",
@@ -700,7 +701,6 @@ dependencies = [
  "victory-shader",
  "windows",
  "windows-sys",
- "zlib-rs",
 ]
 
 [[package]]
